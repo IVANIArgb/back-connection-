@@ -1,0 +1,289 @@
+from flet import *
+
+
+class SortedInfo:
+	def __init__(self):
+		pass
+
+	def suggestions(self):
+		col = Column(
+			alignment='start',
+			horizontal_alignment='center',
+			scroll='auto'
+		)
+
+		with open('project_suggestions.txt', 'r', encoding='utf-8') as f:
+			for line in f:
+				text_container = Container(
+					content=Text(line.strip(), color='black'),
+					width=300,
+					padding=10,
+					margin=5,
+					bgcolor=Colors.WHITE24,
+					border_radius=10
+				)
+				col.controls.append(text_container)
+
+		return col
+
+	def problems(self):
+		problems_data = []
+		col = Column(
+			alignment='start',
+			horizontal_alignment='center',
+			scroll='auto'
+		)
+
+		with open('problems_count.txt', 'r', encoding='utf-8') as f:
+			for line in f:
+				text_container = Container(
+					content=Text(line.strip(), color='black'),
+					width=300,
+					padding=10,
+					margin=5,
+					bgcolor=Colors.WHITE24,
+					border_radius=10
+				)
+				col.controls.append(text_container)
+
+				# Парсим данные для графика
+				try:
+					problem_info = line.strip().split(':')
+					if len(problem_info) > 1:
+						problems_data.append({
+							'type': problem_info[0].strip(),
+							'count': int(problem_info[1].strip())
+						})
+				except Exception as e:
+					print(f"Ошибка при парсинге: {e}")
+
+		return col, problems_data
+
+	def desc_problems(self):
+		col = Column(
+			alignment='start',
+			horizontal_alignment='center',
+			scroll='auto'
+		)
+
+		with open('described_problems.txt', 'r', encoding='utf-8') as f:
+			for line in f:
+				text_container = Container(
+					content=Text(line.strip(), color='black'),
+					width=300,
+					padding=10,
+					margin=5,
+					bgcolor=Colors.WHITE24,
+					border_radius=10
+				)
+				col.controls.append(text_container)
+
+		return col
+
+	def failure_frequency_chart(self):
+		problems_data = []
+
+		# Читаем данные напрямую из файла
+		try:
+			with open('problems_count.txt', 'r', encoding='utf-8') as f:
+				for line in f:
+					try:
+						problem, count = line.strip().split(': ')
+						problems_data.append({
+							'type': problem,
+							'count': int(count)
+						})
+					except Exception as e:
+						print(f"Ошибка при парсинге строки: {e}")
+
+			# Проверяем, есть ли данные
+			if not problems_data:
+				return Text("Недостаточно данных для построения графика", color='white')
+
+			# Находим максимальное значение для нормализации высоты
+			max_count = max(item['count'] for item in problems_data)
+			max_height = 250  # Максимальная высота столбца
+
+			# Создаем Column для графика с выравниванием по низу
+			chart_column = Column(
+				horizontal_alignment=CrossAxisAlignment.CENTER,
+				controls=[
+					Row(
+						alignment=MainAxisAlignment.CENTER,
+						spacing=20,
+						vertical_alignment=CrossAxisAlignment.END,
+						controls=[
+							Container(
+								margin=margin.only(top=25),
+								width=100,
+								height=max_height * (item['count'] / max_count),  # Пропорциональная высота
+								bgcolor=Colors.BLUE_500,
+								content=Column(
+									horizontal_alignment=CrossAxisAlignment.CENTER,
+									controls=[
+										Text(str(item['count']), color=Colors.WHITE, size=16),
+										Text(item['type'], color=Colors.WHITE, size=12)
+									]
+								),
+								padding=10,
+								border_radius=10
+							) for item in problems_data
+						]
+					)
+				]
+			)
+
+			return chart_column
+
+		except FileNotFoundError:
+			print("Файл problems_count.txt не найден!")
+			return Text("Файл с данными не найден", color='white')
+		except Exception as e:
+			print(f"Непредвиденная ошибка: {e}")
+			return Text(f"Ошибка: {e}", color='white')
+
+
+def main(page: Page):
+	page.theme_mode = 'dark'
+	page.window.shadow = 'black'
+	page.window.height = 1100
+	page.window.width = 1050
+	info = SortedInfo()
+	page.vertical_alignment = alignment.center
+	page.horizontal_alignment = alignment.center
+
+	head = Text('''The application's problems''', size=25, text_align='center')
+
+	# Получаем данные о проблемах
+	problems_column, problems_data = info.problems()
+
+	# Создаем прокручиваемый контейнер для всего содержимого
+	_c = Container(
+				width=1000,
+				height=1050,
+				border_radius=25,
+				gradient=LinearGradient(
+					begin=alignment.top_right,
+					end=alignment.bottom_left,
+					colors=[Colors.BLACK54, Colors.GREY_800]
+				),
+				content=Column(
+					scroll='auto',
+					controls=[
+						Container(
+							width=1000,
+							height=50,
+							alignment=alignment.center,
+							content=head
+						),
+						Row(
+							controls=[
+								Container(
+									bgcolor=Colors.LIME,
+									width=315,
+									height=500,
+									alignment=alignment.top_left,
+									margin=margin.only(right=5, top=50, left=5),
+									border_radius=25,
+									content=Column(
+										alignment='start',
+										horizontal_alignment='center',
+										scroll='auto',
+										controls=[
+											Container(
+												alignment=alignment.top_center,
+												content=Text('described problems', color='black', size=20),
+												bgcolor=Colors.LIME_ACCENT_200,
+												height=45
+											),
+											Container(
+												alignment=alignment.center,
+												content=info.desc_problems()
+											)
+										]
+									)
+								),
+								Container(
+									bgcolor=Colors.AMBER,
+									width=315,
+									height=500,
+									alignment=alignment.top_center,
+									margin=margin.only(right=5, top=50, left=5),
+									border_radius=25,
+									content=Column(
+										alignment='start',
+										horizontal_alignment='center',
+										scroll='auto',
+										controls=[
+											Container(
+												alignment=alignment.top_center,
+												content=Text('problems count', color='black', size=20),
+												bgcolor=Colors.AMBER_ACCENT_200,
+												height=45
+											),
+											Container(
+												alignment=alignment.center,
+												content=problems_column
+											)
+										]
+									)
+								),
+								Container(
+									bgcolor=Colors.RED,
+									width=315,
+									height=500,
+									alignment=alignment.top_right,
+									margin=margin.only(right=5, top=50, left=5),
+									border_radius=25,
+									content=Column(
+										alignment='start',
+										horizontal_alignment='center',
+										scroll='auto',
+										controls=[
+											Container(
+												alignment=alignment.top_center,
+												content=Text('suggestions', color='black', size=20),
+												bgcolor=Colors.RED_ACCENT_200,
+												height=45
+											),
+											Container(
+												alignment=alignment.center,
+												content=info.suggestions()
+											)
+										]
+									)
+								),
+							]
+						),
+						# Новый контейнер для графика
+						Container(
+							width=1000,
+							height=350,
+							margin=margin.only(top=50),
+							content=Column(
+								scroll='auto',
+								horizontal_alignment='center',
+								controls=[
+									Divider(),
+									Text('Errors counted frequency', size=25, text_align='center',
+									     color='white'),
+									info.failure_frequency_chart()
+								],
+							)
+						)
+					]
+				)
+			)
+
+	# Добавляем прокручиваемый контейнер на страницу
+	page.add(
+		Container(
+			content=Column(
+				scroll='auto',
+				controls=[_c]
+			)
+		)
+	)
+
+
+app(target=main)
